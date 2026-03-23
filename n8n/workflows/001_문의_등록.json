@@ -1,0 +1,177 @@
+{
+  "name": "001 문의 등록",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qna-inquiry-register-change-me",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -940,
+        0
+      ],
+      "id": "d3559d32-bf00-4f34-a0e7-1b4d8e7c8ef1",
+      "name": "Webhook",
+      "webhookId": "c57f7678-5b38-4b15-b0fe-8b7cc1ca05d8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst headers = Object.fromEntries(Object.entries(input.headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]));\nconst body = input.body ?? {};\nconst expectedSecret = process.env.N8N_SHARED_SECRET ?? 'CHANGE_ME';\nconst actualSecret = headers['x-n8n-shared-secret'];\n\nif (!actualSecret) {\n  throw new Error('Missing X-N8N-Shared-Secret header');\n}\n\nif (expectedSecret === 'CHANGE_ME') {\n  throw new Error('Set N8N_SHARED_SECRET before publishing this workflow');\n}\n\nif (actualSecret !== expectedSecret) {\n  throw new Error('Invalid shared secret');\n}\n\nconst requiredFields = ['request_id', 'dedup_key', 'name', 'email', 'phone', 'title', 'body'];\nfor (const field of requiredFields) {\n  if (!body[field]) {\n    throw new Error(`Missing required field: ${field}`);\n  }\n}\n\nreturn [{\n  json: {\n    workflow: 'inquiry_register',\n    request_id: body.request_id,\n    dedup_key: body.dedup_key,\n    name: body.name,\n    email: body.email,\n    phone: body.phone,\n    title: body.title,\n    inquiry_body: body.body,\n    admin_email: body.admin_email ?? '',\n    notion_database_id: body.notion_database_id ?? '',\n    received_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -700,
+        0
+      ],
+      "id": "06a32986-1432-4492-af53-fc6c5311a874",
+      "name": "Validate Shared Secret and Input"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        -140
+      ],
+      "id": "9cb1754c-01df-4f95-bdc3-e7079f27520a",
+      "name": "TODO Replace with Notion Database Page Create"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -180,
+        -140
+      ],
+      "id": "576ce150-5364-4b95-a6e1-4609186e2086",
+      "name": "TODO Replace with Send Admin Email"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"status\": \"ok\",\n  \"workflow\": \"inquiry_register\",\n  \"request_id\": \"{{ $json.request_id }}\",\n  \"dedup_key\": \"{{ $json.dedup_key }}\",\n  \"message\": \"문의 등록 워크플로우 초안이 실행되었습니다. TODO 노드를 실제 Notion/메일 노드로 교체하세요.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        -140
+      ],
+      "id": "85cf89d2-fd1f-449d-a698-c7bb6ea6548e",
+      "name": "Prepare Success Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        320,
+        -140
+      ],
+      "id": "c75c19ba-4a0a-46c4-b4d1-87fa40b7a0b9",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Shared Secret and Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Shared Secret and Input": {
+      "main": [
+        [
+          {
+            "node": "TODO Replace with Notion Database Page Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO Replace with Notion Database Page Create": {
+      "main": [
+        [
+          {
+            "node": "TODO Replace with Send Admin Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TODO Replace with Send Admin Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Success Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "x-n8n-shared-secret": "CHANGE_ME"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "request_id": "demo-request-001",
+          "dedup_key": "demo-dedup-key",
+          "name": "홍길동",
+          "email": "user@example.com",
+          "phone": "010-1234-5678",
+          "title": "서비스 문의",
+          "body": "문의 본문 예시",
+          "admin_email": "admin@example.com",
+          "notion_database_id": "notion-db-id"
+        },
+        "executionMode": "production"
+      }
+    ]
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "versionId": "e4027663-f7cf-408c-af3e-1f72708f9941",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
