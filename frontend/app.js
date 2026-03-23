@@ -1,6 +1,5 @@
 const ROUTE_HOME = "/";
 const ROUTE_ADMIN = "/admin";
-const LOCAL_STORAGE_API_KEY = "smart_timelabs.apiBaseUrl";
 const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:8000";
 const STATUS_OPTIONS = ["등록됨", "처리중", "완료됨"];
 
@@ -9,8 +8,6 @@ const root = document.querySelector("#app");
 const state = {
   route: normalizeRoute(window.location.pathname),
   apiBaseUrl: resolveInitialApiBaseUrl(),
-  configDraft: resolveInitialApiBaseUrl(),
-  configNotice: null,
   publicForm: {
     name: "",
     email: "",
@@ -82,12 +79,6 @@ function handleClick(event) {
 
   const action = actionTarget.dataset.action;
 
-  if (action === "reset-config") {
-    event.preventDefault();
-    resetApiConfiguration();
-    return;
-  }
-
   if (action === "logout") {
     event.preventDefault();
     void logoutAdmin();
@@ -135,11 +126,6 @@ function handleSubmit(event) {
 
   event.preventDefault();
 
-  if (formName === "config") {
-    saveApiConfiguration();
-    return;
-  }
-
   if (formName === "public-inquiry") {
     void submitInquiry();
     return;
@@ -163,11 +149,6 @@ function handleInput(event) {
 
   const form = target.closest("form");
   const formName = form?.dataset.form;
-
-  if (formName === "config" && target.name === "apiBaseUrl") {
-    state.configDraft = target.value;
-    return;
-  }
 
   if (formName === "public-inquiry" && target.name in state.publicForm) {
     state.publicForm[target.name] = target.value;
@@ -235,19 +216,9 @@ function normalizeRoute(pathname) {
 }
 
 function resolveInitialApiBaseUrl() {
-  const searchOverride = normalizeApiBaseUrl(new URLSearchParams(window.location.search).get("apiBaseUrl") || "");
-  if (searchOverride) {
-    return searchOverride;
-  }
-
   const configured = normalizeApiBaseUrl(window.APP_CONFIG?.apiBaseUrl || "");
   if (configured) {
     return configured;
-  }
-
-  const saved = normalizeApiBaseUrl(window.localStorage.getItem(LOCAL_STORAGE_API_KEY) || "");
-  if (saved) {
-    return saved;
   }
 
   if (isLocalHostname(window.location.hostname)) {
@@ -265,57 +236,11 @@ function isLocalHostname(hostname) {
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
-function saveApiConfiguration() {
-  const normalized = normalizeApiBaseUrl(state.configDraft);
-  if (!normalized) {
-    state.configNotice = {
-      type: "warn",
-      text: "백엔드 API 주소를 입력해주세요.",
-    };
-    render();
-    return;
-  }
-
-  window.localStorage.setItem(LOCAL_STORAGE_API_KEY, normalized);
-  state.apiBaseUrl = normalized;
-  state.configDraft = normalized;
-  state.configNotice = {
-    type: "ok",
-    text: "브라우저에 API 주소를 저장했습니다.",
-  };
-  state.publicNotice = null;
-  state.admin = makeAdminState();
-  render();
-
-  if (state.route === ROUTE_ADMIN) {
-    void ensureAdminSession();
-  }
-}
-
-function resetApiConfiguration() {
-  window.localStorage.removeItem(LOCAL_STORAGE_API_KEY);
-  state.apiBaseUrl = resolveInitialApiBaseUrl();
-  state.configDraft = state.apiBaseUrl;
-  state.configNotice = {
-    type: "ok",
-    text: state.apiBaseUrl
-      ? "기본 API 주소로 되돌렸습니다."
-      : "저장된 API 주소를 지웠습니다.",
-  };
-  state.publicNotice = null;
-  state.admin = makeAdminState();
-  render();
-
-  if (state.route === ROUTE_ADMIN && state.apiBaseUrl) {
-    void ensureAdminSession();
-  }
-}
-
 async function submitInquiry() {
   if (!state.apiBaseUrl) {
     state.publicNotice = {
       type: "warn",
-      text: "문의를 보내기 전에 백엔드 API 주소를 먼저 설정해주세요.",
+      text: "백엔드 연결 정보가 없습니다. 배포 설정의 API 주소를 확인해주세요.",
     };
     render();
     return;
@@ -424,7 +349,7 @@ async function ensureAdminSession() {
 
 async function loginAdmin() {
   if (!state.apiBaseUrl) {
-    state.admin.authMessage = "로그인 전에 백엔드 API 주소를 먼저 설정해주세요.";
+    state.admin.authMessage = "백엔드 연결 정보가 없습니다. 배포 설정의 API 주소를 확인해주세요.";
     render();
     return;
   }
@@ -712,7 +637,7 @@ function syncUpdateForm(inquiry) {
 
 function apiUrl(path) {
   if (!state.apiBaseUrl) {
-    throw new Error("백엔드 API 주소가 설정되지 않았습니다.");
+    throw new Error("백엔드 API 주소가 없습니다.");
   }
   return `${state.apiBaseUrl}${path}`;
 }
@@ -807,9 +732,7 @@ function render() {
       <section class="masthead">
         <div class="masthead-row">
           <div>
-            <p class="eyebrow">Minimal Frontend</p>
             <h1>Smart Timelabs Onboarding</h1>
-            <p>공개 문의 등록과 관리자 처리만 남긴 가장 얇은 정적 프론트엔드입니다. Vercel에 그대로 올리고 Cloud Run API만 연결하면 됩니다.</p>
           </div>
           <nav class="nav" aria-label="Primary">
             <a href="/" class="nav-link ${state.route === ROUTE_HOME ? "is-active" : ""}" data-route="/">문의 등록</a>
@@ -819,51 +742,9 @@ function render() {
       </section>
 
       <section class="page-grid">
-        ${renderConfigPanel()}
         ${state.route === ROUTE_ADMIN ? renderAdminPage() : renderPublicPage()}
       </section>
     </main>
-  `;
-}
-
-function renderConfigPanel() {
-  const apiBaseUrl = state.apiBaseUrl || "미설정";
-  const panelNotice = renderNotice(state.configNotice);
-
-  return `
-    <section class="panel">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Runtime Config</p>
-          <h2>백엔드 연결</h2>
-        </div>
-        <span class="pill">${escapeHtml(apiBaseUrl)}</span>
-      </div>
-      ${panelNotice}
-      <form class="stack" data-form="config">
-        <div class="field">
-          <label for="api-base-url">Cloud Run API 주소</label>
-          <input
-            id="api-base-url"
-            name="apiBaseUrl"
-            type="url"
-            placeholder="https://qna-backend-xxxxx.a.run.app"
-            value="${escapeHtml(state.configDraft)}"
-            spellcheck="false"
-          />
-        </div>
-        <div class="split-actions">
-          <p class="muted">운영에서는 Cloud Run URL을 넣고, 로컬에서는 기본값으로 <code>${escapeHtml(DEFAULT_LOCAL_API_BASE_URL)}</code>를 씁니다.</p>
-          <div class="nav">
-            <button type="submit" class="secondary-button">저장</button>
-            <button type="button" class="ghost-button" data-action="reset-config">초기화</button>
-          </div>
-        </div>
-      </form>
-      <div class="panel-note">
-        관리자 화면은 크로스 오리진 쿠키를 쓰므로 백엔드의 <code>BACKEND_ALLOWED_ORIGINS</code>에 현재 프론트 도메인이 등록되어 있어야 합니다. 로컬 HTTP 테스트라면 <code>ADMIN_COOKIE_SECURE=false</code>가 필요합니다.
-      </div>
-    </section>
   `;
 }
 
@@ -874,12 +755,9 @@ function renderPublicPage() {
     <section class="panel">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Public Inquiry</p>
           <h2>문의 등록</h2>
         </div>
       </div>
-      <p class="muted">이름, 연락처, 제목, 내용을 입력하면 백엔드가 중복 등록을 검사하고 문의를 생성합니다.</p>
-      <div class="panel-note">사용자용 상태 조회는 범위에서 제외했습니다. 등록 결과는 요청 ID로만 안내합니다.</div>
       <div style="height: 1rem"></div>
       ${renderNotice(state.publicNotice)}
       <form class="stack" data-form="public-inquiry">
@@ -908,7 +786,6 @@ function renderPublicPage() {
           <textarea id="body" name="body" maxlength="5000" required>${escapeHtml(state.publicForm.body)}</textarea>
         </div>
         <div class="split-actions">
-          <p class="muted">백엔드 미설정 상태에서는 제출할 수 없습니다.</p>
           <button class="primary-button" type="submit" ${disabled ? "disabled" : ""}>
             ${state.publicSubmitting ? "등록 중..." : "문의 등록"}
           </button>
@@ -924,11 +801,10 @@ function renderAdminPage() {
       <section class="panel">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">Admin Console</p>
             <h2>관리자</h2>
           </div>
         </div>
-        <div class="empty-state">관리자 화면을 열기 전에 백엔드 API 주소를 먼저 설정해주세요.</div>
+        <div class="empty-state">배포 설정에 백엔드 API 주소가 없어 관리자 화면을 열 수 없습니다.</div>
       </section>
     `;
   }
@@ -938,7 +814,6 @@ function renderAdminPage() {
       <section class="panel">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">Admin Console</p>
             <h2>관리자 세션 확인 중</h2>
           </div>
         </div>
@@ -952,11 +827,9 @@ function renderAdminPage() {
       <section class="panel">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">Admin Console</p>
             <h2>관리자 로그인</h2>
           </div>
         </div>
-        <p class="muted">별도 계정 시스템 없이 백엔드의 단일 관리자 비밀번호로 접근합니다.</p>
         <div style="height: 1rem"></div>
         ${state.admin.authMessage ? renderNotice({ type: "warn", text: state.admin.authMessage }) : ""}
         <form class="stack" data-form="admin-login">
@@ -972,7 +845,6 @@ function renderAdminPage() {
             />
           </div>
           <div class="split-actions">
-            <p class="muted">로그인 성공 시 세션 쿠키를 이용해 목록과 상세 화면을 호출합니다.</p>
             <button class="primary-button" type="submit" ${state.admin.loginSubmitting ? "disabled" : ""}>
               ${state.admin.loginSubmitting ? "로그인 중..." : "로그인"}
             </button>
