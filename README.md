@@ -9,61 +9,8 @@
 3. `n8n`이 Notion 저장/업데이트와 한국어 메일 발송을 담당합니다.
 4. `Redis`는 동일 문의의 동시 중복 등록과 관리자 상태 변경 직렬화를 담당합니다.
 
-## 1. 빠른 시작
 
-### 전제 도구
-
-- 로컬 실행/테스트: `uv`, `just`
-- 프론트엔드 배포: `npx vercel`
-- Cloud Run 배포: `gcloud`
-
-### 필수 환경변수
-
-`Justfile`과 백엔드 설정은 루트 `.env`를 자동 로드합니다. 최소한 아래 값들은 준비되어 있어야 합니다.
-
-| 변수 | 설명 |
-| --- | --- |
-| `ADMIN_PASSWORD` | 관리자 로그인 비밀번호 |
-| `ADMIN_JWT_SECRET` | 관리자 세션 JWT 서명 키 |
-| `BACKEND_ALLOWED_ORIGINS` | CORS 허용 origin 목록 |
-| `REDIS_URL` | Redis 연결 주소 |
-| `NOTION_TOKEN` | Notion integration token |
-| `NOTION_DATABASE_ID` | 문의 저장 대상 Notion DB ID |
-| `NOTION_DATA_SOURCE_ID` | Notion data source ID |
-| `N8N_BASE_URL` | n8n base URL |
-| `N8N_SHARED_SECRET` | 백엔드 -> n8n 호출용 shared secret |
-| `N8N_WEBHOOK_REGISTER_PATH` | 문의 등록 workflow path |
-| `N8N_WEBHOOK_COMPLETE_PATH` | 문의 완료 workflow path |
-| `ADMIN_NOTIFICATION_EMAIL` | 관리자 알림 수신 주소 |
-
-추가 옵션은 [settings.py](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/backend/app/settings.py#L9)에서 확인할 수 있습니다.
-
-### 로컬 실행
-
-```bash
-just backend-dev
-just frontend-dev port=3000
-```
-
-- 백엔드: `http://localhost:8000`
-- 프론트엔드: `http://localhost:3000`
-- 프론트엔드는 localhost에서 [config.js](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/frontend/config.js) 값을 비워 두고 백엔드 `http://localhost:8000`을 기본값으로 사용합니다.
-
-### 기본 검증
-
-```bash
-just backend-test
-just test
-```
-
-실환경 연동 검증이 필요하면 아래 명령을 사용합니다.
-
-```bash
-just backend-integration-test
-just n8n-integration-test
-```
-
-## 2. 과제 요구사항 대응 요약
+## 1. 과제 요구사항 대응 요약
 
 현재 구현 범위는 아래를 포함합니다.
 
@@ -74,41 +21,30 @@ just n8n-integration-test
 - 문의 완료 시 n8n 완료 workflow 호출
 - Notion DB 저장 및 상태/처리 결과 반영
 - 관리자/문의자 메일 발송
-- 전화번호 포함 입력 검증
 - `이름 + 제목` 기준 중복 등록 방지
 - 동시 요청 상황에서 Redis 잠금 기반 중복 제어
 - 프론트엔드 정적 앱 및 Vercel 배포
 
-제품 요구사항은 [docs/prd.md](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/prd.md)에 정리되어 있습니다.
+## 2. 아키텍처 한눈에 보기
 
-## 3. 아키텍처 한눈에 보기
+```mermaid
+flowchart LR
+  FE["Vercel Frontend<br/>static app"]
+  BE["FastAPI Backend<br/>Cloud Run"]
+  REDIS[("Redis<br/>Memorystore")]
+  NOTION[("Notion DB")]
+  N8N["n8n<br/>Cloud Run easy mode"]
+  MAIL["Mail Provider"]
 
-```text
-+------------------+       HTTPS        +----------------------+
-| Vercel Frontend  | -----------------> | FastAPI Backend      |
-| static app       |                    | on Cloud Run         |
-+------------------+                    +----------+-----------+
-                                                   |
-                                                   | Redis lock / state
-                                                   v
-                                         +---------+----------+
-                                         | Redis (Memorystore)|
-                                         +---------+----------+
-                                                   |
-                                                   | webhook
-                                                   v
-                                         +---------+---------+
-                                         | n8n on Cloud Run  |
-                                         | easy mode         |
-                                         +----+---------+----+
-                                              |         |
-                           Notion create/update|         |Korean HTML mail
-                                              v         v
-                                       +------+--+   +--+------+
-                                       | Notion |   | Mail     |
-                                       | DB     |   | Provider |
-                                       +--------+   +---------+
+  FE -->|HTTPS| BE
+  BE -->|lock / state| REDIS
+  BE -->|query / update| NOTION
+  BE -->|webhook| N8N
+  N8N -->|create / update| NOTION
+  N8N -->|Korean HTML + text mail| MAIL
 ```
+
+백엔드는 Redis와 Notion을 직접 사용하고, 등록/완료 workflow와 메일 발송은 n8n에 위임합니다.
 
 ### 역할 분리
 
@@ -124,7 +60,7 @@ just n8n-integration-test
 - [ADR 005](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/adr/005_문의_주_저장소로_Notion_DB_사용_및_Redis_동시성_제어_채택.md)
 - [ADR 006](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/adr/006_n8n_배포_전략으로_Cloud_Run_easy_mode_채택.md)
 
-## 4. 핵심 플로우
+## 3. 핵심 플로우
 
 ### 문의 등록
 
@@ -145,7 +81,7 @@ just n8n-integration-test
 
 중복 방지 상세는 [redis_중복_방지_플로우.md](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/design/redis_중복_방지_플로우.md)에 정리되어 있습니다.
 
-## 5. 저장소 구조
+## 4. 저장소 구조
 
 ```text
 backend/
@@ -177,7 +113,7 @@ docs/
   design/
 ```
 
-## 6. 주요 API
+## 5. 주요 API
 
 ### 공개 API
 
@@ -197,7 +133,7 @@ docs/
 
 기본 상태 값은 `등록됨`, `처리중`, `완료됨`입니다. Notion 내부 매핑은 `Registered`, `In Progress`, `Completed`를 사용합니다.
 
-## 7. 자주 쓰는 명령
+## 6. 자주 쓰는 명령
 
 이 저장소는 `Justfile`을 단일 진입점으로 사용합니다.
 
@@ -244,7 +180,8 @@ just backend-docker-run port=8080
 
 전체 레시피는 [Justfile](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/Justfile)에서 확인할 수 있습니다.
 
-## 8. 참고 문서
+
+## 7. 참고 문서
 
 - 제품 요구사항: [docs/prd.md](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/prd.md)
 - 아키텍처 결정 기록: [docs/adr/000_index.md](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/adr/000_index.md)
@@ -252,7 +189,7 @@ just backend-docker-run port=8080
 - n8n 배포 절차: [docs/n8n/cloud_run_easy_mode_배포_절차.md](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/n8n/cloud_run_easy_mode_배포_절차.md)
 - n8n workflow export 설명: [n8n/workflows/README.md](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/n8n/workflows/README.md)
 
-## 9. 운영 메모
+## 8. 운영 메모
 
 - n8n workflow 수정 시 저장소의 export JSON과 실환경 workflow를 함께 갱신해야 합니다.
 - 문의 완료 workflow는 메일 템플릿 렌더링을 위해 `name`, `title`이 포함된 내부 payload 계약을 사용합니다.
