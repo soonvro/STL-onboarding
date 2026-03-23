@@ -18,10 +18,7 @@ const state = {
   publicSubmitting: false,
   publicNotice: null,
   admin: makeAdminState(),
-  theme: localStorage.getItem("theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
 };
-
-document.documentElement.setAttribute("data-theme", state.theme);
 
 root.addEventListener("click", handleClick);
 root.addEventListener("submit", handleSubmit);
@@ -68,15 +65,6 @@ function handlePopState() {
 }
 
 function handleClick(event) {
-  const themeToggle = event.target.closest("[data-action='toggle-theme']");
-  if (themeToggle) {
-    state.theme = state.theme === "light" ? "dark" : "light";
-    localStorage.setItem("theme", state.theme);
-    document.documentElement.setAttribute("data-theme", state.theme);
-    render();
-    return;
-  }
-
   const routeTarget = event.target.closest("[data-route]");
   if (routeTarget) {
     event.preventDefault();
@@ -746,15 +734,10 @@ function render() {
           <div>
             <h1>Smart Timelabs Onboarding</h1>
           </div>
-          <div style="display: flex; align-items: center; gap: 1rem;">
-            <button class="ghost-button" type="button" data-action="toggle-theme" aria-label="Toggle theme">
-              ${state.theme === "light" ? "🌙" : "☀️"}
-            </button>
-            <nav class="nav" aria-label="Primary">
-              <a href="/" class="nav-link ${state.route === ROUTE_HOME ? "is-active" : ""}" data-route="/">문의 등록</a>
-              <a href="/admin" class="nav-link ${state.route === ROUTE_ADMIN ? "is-active" : ""}" data-route="/admin">관리자</a>
-            </nav>
-          </div>
+          <nav class="nav" aria-label="Primary">
+            <a href="/" class="nav-link ${state.route === ROUTE_HOME ? "is-active" : ""}" data-route="/">문의 등록</a>
+            <a href="/admin" class="nav-link ${state.route === ROUTE_ADMIN ? "is-active" : ""}" data-route="/admin">관리자</a>
+          </nav>
         </div>
       </section>
 
