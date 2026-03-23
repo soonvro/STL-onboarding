@@ -12,6 +12,13 @@ DEFAULT_N8N_MEMORY = "2Gi"
 DEFAULT_N8N_REGION = "asia-northeast3"
 DEFAULT_N8N_SCALING = "1"
 DEFAULT_N8N_SERVICE_NAME = "n8n-demo"
+DEFAULT_BACKEND_MEMORY = "1Gi"
+DEFAULT_BACKEND_SERVICE_NAME = "qna-backend"
+DEFAULT_REDIS_INSTANCE_NAME = "qna-redis"
+DEFAULT_REDIS_REGION = "asia-northeast3"
+DEFAULT_REDIS_SIZE_GB = "1"
+DEFAULT_REDIS_NETWORK = "default"
+DEFAULT_REDIS_REDIS_VERSION = "redis_7_0"
 DEFAULT_TIMEZONE = "Asia/Seoul"
 
 
@@ -241,6 +248,106 @@ class N8nIntegrationTestConfig:
             notion_api_version=_optional_env("NOTION_API_VERSION") or DEFAULT_API_VERSION,
             notion_database_id=_required_env("NOTION_DATABASE_ID"),
             admin_email=admin_email,
+            requester_email=requester_email,
+        )
+
+    def validate_for_action(self, action: str) -> None:
+        if action == "run":
+            return
+        raise ConfigError(f"Unsupported action: {action}")
+
+
+@dataclass(slots=True)
+class BackendCloudRunConfig:
+    gcp_project_id: str
+    gcp_region: str
+    backend_service_name: str
+    backend_image: str
+    backend_memory: str
+    backend_vpc_network: str
+    backend_vpc_subnet: str
+    backend_vpc_egress: str
+
+    @classmethod
+    def from_environment(cls) -> "BackendCloudRunConfig":
+        project_id = _required_env("GCP_PROJECT_ID")
+        service_name = _optional_env("BACKEND_SERVICE_NAME") or DEFAULT_BACKEND_SERVICE_NAME
+        image = _optional_env("BACKEND_IMAGE") or f"gcr.io/{project_id}/{service_name}"
+        return cls(
+            gcp_project_id=project_id,
+            gcp_region=_optional_env("GCP_REGION") or DEFAULT_N8N_REGION,
+            backend_service_name=service_name,
+            backend_image=image,
+            backend_memory=_optional_env("BACKEND_MEMORY") or DEFAULT_BACKEND_MEMORY,
+            backend_vpc_network=_optional_env("BACKEND_VPC_NETWORK") or DEFAULT_REDIS_NETWORK,
+            backend_vpc_subnet=_optional_env("BACKEND_VPC_SUBNET") or DEFAULT_REDIS_NETWORK,
+            backend_vpc_egress=_optional_env("BACKEND_VPC_EGRESS") or "private-ranges-only",
+        )
+
+    def validate_for_action(self, action: str) -> None:
+        if action in {"deploy", "describe"}:
+            return
+        raise ConfigError(f"Unsupported action: {action}")
+
+
+@dataclass(slots=True)
+class RedisAutomationConfig:
+    gcp_project_id: str
+    redis_instance_name: str
+    redis_region: str
+    redis_size_gb: int
+    redis_network: str
+    redis_version: str
+
+    @classmethod
+    def from_environment(cls) -> "RedisAutomationConfig":
+        size_value = _optional_env("REDIS_SIZE_GB") or DEFAULT_REDIS_SIZE_GB
+        try:
+            size_gb = int(size_value)
+        except ValueError as exc:
+            raise ConfigError("REDIS_SIZE_GB must be an integer") from exc
+
+        return cls(
+            gcp_project_id=_required_env("GCP_PROJECT_ID"),
+            redis_instance_name=_optional_env("REDIS_INSTANCE_NAME") or DEFAULT_REDIS_INSTANCE_NAME,
+            redis_region=_optional_env("REDIS_REGION") or DEFAULT_REDIS_REGION,
+            redis_size_gb=size_gb,
+            redis_network=_optional_env("REDIS_NETWORK") or DEFAULT_REDIS_NETWORK,
+            redis_version=_optional_env("REDIS_REDIS_VERSION") or DEFAULT_REDIS_REDIS_VERSION,
+        )
+
+    def validate_for_action(self, action: str) -> None:
+        if action in {"create", "describe", "destroy"}:
+            return
+        raise ConfigError(f"Unsupported action: {action}")
+
+
+@dataclass(slots=True)
+class BackendIntegrationTestConfig:
+    backend_base_url: str
+    admin_password: str
+    notion_token: str
+    notion_api_version: str
+    requester_email: str
+
+    @classmethod
+    def from_environment(cls) -> "BackendIntegrationTestConfig":
+        requester_email = (
+            _extract_email_address(_optional_env("BACKEND_TEST_REQUESTER_EMAIL"))
+            or _extract_email_address(_optional_env("N8N_TEST_REQUESTER_EMAIL"))
+            or _extract_email_address(_optional_env("SMTP_USER"))
+            or _extract_email_address(_optional_env("N8N_FROM_EMAIL"))
+        )
+        if not requester_email:
+            raise ConfigError(
+                "BACKEND_TEST_REQUESTER_EMAIL is required when SMTP_USER/N8N_FROM_EMAIL does not contain a valid email address"
+            )
+
+        return cls(
+            backend_base_url=_required_env("BACKEND_BASE_URL"),
+            admin_password=_required_env("ADMIN_PASSWORD"),
+            notion_token=_required_env("NOTION_TOKEN"),
+            notion_api_version=_optional_env("NOTION_API_VERSION") or DEFAULT_API_VERSION,
             requester_email=requester_email,
         )
 

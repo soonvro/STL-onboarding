@@ -92,6 +92,29 @@ class NotionClient:
     def archive_page(self, page_id: str) -> dict[str, object]:
         return self._request("PATCH", f"/pages/{page_id}", json={"archived": True})
 
+    def update_page(self, page_id: str, properties: dict[str, object]) -> dict[str, object]:
+        return self._request("PATCH", f"/pages/{page_id}", json={"properties": properties})
+
+    def query_data_source(
+        self,
+        data_source_id: str,
+        *,
+        filter: dict[str, object] | None = None,
+        sorts: list[dict[str, object]] | None = None,
+        start_cursor: str | None = None,
+        page_size: int | None = None,
+    ) -> dict[str, object]:
+        payload: dict[str, object] = {}
+        if filter is not None:
+            payload["filter"] = filter
+        if sorts is not None:
+            payload["sorts"] = sorts
+        if start_cursor is not None:
+            payload["start_cursor"] = start_cursor
+        if page_size is not None:
+            payload["page_size"] = page_size
+        return self._request("POST", f"/data_sources/{data_source_id}/query", json=payload)
+
     def search_data_sources_by_title(self, database_title: str) -> list[dict[str, object]]:
         results: list[dict[str, object]] = []
         start_cursor: str | None = None
