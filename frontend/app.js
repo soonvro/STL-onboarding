@@ -18,7 +18,10 @@ const state = {
   publicSubmitting: false,
   publicNotice: null,
   admin: makeAdminState(),
+  theme: localStorage.getItem("theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
 };
+
+document.documentElement.setAttribute("data-theme", state.theme);
 
 root.addEventListener("click", handleClick);
 root.addEventListener("submit", handleSubmit);
@@ -65,6 +68,15 @@ function handlePopState() {
 }
 
 function handleClick(event) {
+  const themeToggle = event.target.closest("[data-action='toggle-theme']");
+  if (themeToggle) {
+    state.theme = state.theme === "light" ? "dark" : "light";
+    localStorage.setItem("theme", state.theme);
+    document.documentElement.setAttribute("data-theme", state.theme);
+    render();
+    return;
+  }
+
   const routeTarget = event.target.closest("[data-route]");
   if (routeTarget) {
     event.preventDefault();
@@ -734,16 +746,21 @@ function render() {
           <div>
             <h1>Smart Timelabs Onboarding</h1>
           </div>
-          <nav class="nav" aria-label="Primary">
-            <a href="/" class="nav-link ${state.route === ROUTE_HOME ? "is-active" : ""}" data-route="/">문의 등록</a>
-            <a href="/admin" class="nav-link ${state.route === ROUTE_ADMIN ? "is-active" : ""}" data-route="/admin">관리자</a>
-          </nav>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button class="ghost-button" type="button" data-action="toggle-theme" aria-label="Toggle theme">
+              ${state.theme === "light" ? "🌙" : "☀️"}
+            </button>
+            <nav class="nav" aria-label="Primary">
+              <a href="/" class="nav-link ${state.route === ROUTE_HOME ? "is-active" : ""}" data-route="/">문의 등록</a>
+              <a href="/admin" class="nav-link ${state.route === ROUTE_ADMIN ? "is-active" : ""}" data-route="/admin">관리자</a>
+            </nav>
+          </div>
         </div>
       </section>
 
-      <section class="page-grid">
+      <div class="page-grid">
         ${state.route === ROUTE_ADMIN ? renderAdminPage() : renderPublicPage()}
-      </section>
+      </div>
     </main>
   `;
 }
@@ -754,42 +771,34 @@ function renderPublicPage() {
   return `
     <section class="panel">
       <div class="panel-header">
-        <div>
-          <h2>문의 등록</h2>
-        </div>
+        <p class="eyebrow">Contact</p>
+        <h2>문의 등록</h2>
       </div>
-      <div style="height: 1rem"></div>
       ${renderNotice(state.publicNotice)}
       <form class="stack" data-form="public-inquiry">
-        <div class="field-grid">
-          <div class="field">
-            <label for="name">이름</label>
-            <input id="name" name="name" type="text" maxlength="100" value="${escapeHtml(state.publicForm.name)}" required />
-          </div>
-          <div class="field">
-            <label for="email">이메일</label>
-            <input id="email" name="email" type="email" value="${escapeHtml(state.publicForm.email)}" required />
-          </div>
+        <div class="field">
+          <label for="name">이름</label>
+          <input id="name" name="name" type="text" maxlength="100" placeholder="홍길동" value="${escapeHtml(state.publicForm.name)}" required />
         </div>
-        <div class="field-grid">
-          <div class="field">
-            <label for="phone">전화번호</label>
-            <input id="phone" name="phone" type="tel" maxlength="30" value="${escapeHtml(state.publicForm.phone)}" required />
-          </div>
-          <div class="field">
-            <label for="title">문의 제목</label>
-            <input id="title" name="title" type="text" maxlength="200" value="${escapeHtml(state.publicForm.title)}" required />
-          </div>
+        <div class="field">
+          <label for="email">이메일</label>
+          <input id="email" name="email" type="email" placeholder="example@domain.com" value="${escapeHtml(state.publicForm.email)}" required />
+        </div>
+        <div class="field">
+          <label for="phone">전화번호</label>
+          <input id="phone" name="phone" type="tel" maxlength="30" placeholder="010-1234-5678" value="${escapeHtml(state.publicForm.phone)}" required />
+        </div>
+        <div class="field">
+          <label for="title">문의 제목</label>
+          <input id="title" name="title" type="text" maxlength="200" placeholder="문의사항의 제목을 입력하세요." value="${escapeHtml(state.publicForm.title)}" required />
         </div>
         <div class="field">
           <label for="body">문의 내용</label>
-          <textarea id="body" name="body" maxlength="5000" required>${escapeHtml(state.publicForm.body)}</textarea>
+          <textarea id="body" name="body" maxlength="5000" placeholder="자세한 문의 내용을 입력해 주세요." required>${escapeHtml(state.publicForm.body)}</textarea>
         </div>
-        <div class="split-actions">
-          <button class="primary-button" type="submit" ${disabled ? "disabled" : ""}>
-            ${state.publicSubmitting ? "등록 중..." : "문의 등록"}
-          </button>
-        </div>
+        <button class="primary-button" type="submit" ${disabled ? "disabled" : ""}>
+          ${state.publicSubmitting ? "등록 중..." : "문의 등록하기"}
+        </button>
       </form>
     </section>
   `;
@@ -800,11 +809,9 @@ function renderAdminPage() {
     return `
       <section class="panel">
         <div class="panel-header">
-          <div>
-            <h2>관리자</h2>
-          </div>
+          <h2>관리자</h2>
         </div>
-        <div class="empty-state">배포 설정에 백엔드 API 주소가 없어 관리자 화면을 열 수 없습니다.</div>
+        <div class="empty-state">백엔드 API 주소가 연결되지 않았습니다.</div>
       </section>
     `;
   }
@@ -813,24 +820,20 @@ function renderAdminPage() {
     return `
       <section class="panel">
         <div class="panel-header">
-          <div>
-            <h2>관리자 세션 확인 중</h2>
-          </div>
+          <h2>세션 확인 중</h2>
         </div>
-        <div class="empty-state">기존 관리자 세션을 확인하고 있습니다.</div>
+        <div class="empty-state">관리자 세션을 확인하고 있습니다...</div>
       </section>
     `;
   }
 
   if (!state.admin.authenticated) {
     return `
-      <section class="panel">
+      <section class="panel" style="max-width: 400px; margin: 0 auto;">
         <div class="panel-header">
-          <div>
-            <h2>관리자 로그인</h2>
-          </div>
+          <p class="eyebrow">Admin</p>
+          <h2>관리자 로그인</h2>
         </div>
-        <div style="height: 1rem"></div>
         ${state.admin.authMessage ? renderNotice({ type: "warn", text: state.admin.authMessage }) : ""}
         <form class="stack" data-form="admin-login">
           <div class="field">
@@ -839,16 +842,15 @@ function renderAdminPage() {
               id="admin-password"
               name="password"
               type="password"
+              placeholder="••••••••"
               value="${escapeHtml(state.admin.loginPassword)}"
               autocomplete="current-password"
               required
             />
           </div>
-          <div class="split-actions">
-            <button class="primary-button" type="submit" ${state.admin.loginSubmitting ? "disabled" : ""}>
-              ${state.admin.loginSubmitting ? "로그인 중..." : "로그인"}
-            </button>
-          </div>
+          <button class="primary-button" type="submit" ${state.admin.loginSubmitting ? "disabled" : ""}>
+            ${state.admin.loginSubmitting ? "로그인 중..." : "로그인"}
+          </button>
         </form>
       </section>
     `;
@@ -856,34 +858,35 @@ function renderAdminPage() {
 
   return `
     <section class="admin-grid">
-      <section class="panel">
-        <div class="panel-header">
+      <aside class="panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: start;">
           <div>
             <p class="eyebrow">Queue</p>
             <h2>문의 목록</h2>
           </div>
-          <button class="ghost-button" type="button" data-action="logout">로그아웃</button>
+          <button class="ghost-button" type="button" data-action="logout" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">로그아웃</button>
         </div>
         <div class="toolbar">
           <div class="status-row" role="tablist" aria-label="Status filter">
             ${renderFilterChip("", "전체")}
             ${STATUS_OPTIONS.map((status) => renderFilterChip(status, status)).join("")}
           </div>
-          ${state.admin.loadingList ? '<span class="muted">불러오는 중...</span>' : ""}
         </div>
         ${state.admin.listError ? renderNotice({ type: "error", text: state.admin.listError }) : ""}
         ${renderInquiryList()}
-      </section>
+      </aside>
 
-      <section class="panel">
-        <div class="panel-header">
-          <div>
-            <p class="eyebrow">Detail</p>
-            <h2>문의 상세</h2>
+      <section class="detail-block">
+        <div class="panel">
+          <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <p class="eyebrow">Detail</p>
+              <h2>문의 상세</h2>
+            </div>
+            ${state.admin.detail ? `<span class="pill status-${escapeHtml(state.admin.detail.status)}">${escapeHtml(state.admin.detail.status)}</span>` : ""}
           </div>
-          ${state.admin.detail ? `<span class="pill">${escapeHtml(state.admin.detail.status)}</span>` : ""}
+          ${renderInquiryDetail()}
         </div>
-        ${renderInquiryDetail()}
       </section>
     </section>
   `;
@@ -905,7 +908,7 @@ function renderFilterChip(status, label) {
 
 function renderInquiryList() {
   if (!state.admin.items.length) {
-    return '<div class="empty-state">표시할 문의가 없습니다.</div>';
+    return '<div class="empty-state">문의 내역이 없습니다.</div>';
   }
 
   return `
@@ -921,10 +924,10 @@ function renderInquiryList() {
               data-inquiry-id="${escapeHtml(item.id)}"
             >
               <strong>${escapeHtml(item.title)}</strong>
-              <div>${escapeHtml(item.name)} · ${escapeHtml(item.email)}</div>
+              <div class="inquiry-info">${escapeHtml(item.name)} · ${escapeHtml(item.email)}</div>
               <div class="inquiry-meta">
-                <span>${escapeHtml(item.status)}</span>
-                <span>${escapeHtml(formatDate(item.created_at))}</span>
+                <span class="pill status-${escapeHtml(item.status)}">${escapeHtml(item.status)}</span>
+                <span class="muted">${escapeHtml(formatDate(item.created_at))}</span>
               </div>
             </button>
           `;
@@ -932,7 +935,9 @@ function renderInquiryList() {
         .join("")}
       ${
         state.admin.nextCursor
-          ? `<button class="secondary-button" type="button" data-action="load-more" ${state.admin.loadingList ? "disabled" : ""}>더 보기</button>`
+          ? `<button class="secondary-button" type="button" data-action="load-more" ${state.admin.loadingList ? "disabled" : ""}>
+               ${state.admin.loadingList ? "불러오는 중..." : "더 보기"}
+             </button>`
           : ""
       }
     </div>
@@ -941,7 +946,7 @@ function renderInquiryList() {
 
 function renderInquiryDetail() {
   if (state.admin.loadingDetail && !state.admin.detail) {
-    return '<div class="empty-state">문의 상세를 불러오는 중입니다.</div>';
+    return '<div class="empty-state">내용을 불러오고 있습니다...</div>';
   }
 
   if (state.admin.detailError) {
@@ -949,7 +954,7 @@ function renderInquiryDetail() {
   }
 
   if (!state.admin.detail) {
-    return '<div class="empty-state">왼쪽 목록에서 문의를 선택해주세요.</div>';
+    return '<div class="empty-state">목록에서 상세 정보를 볼 문의를 선택하세요.</div>';
   }
 
   const inquiry = state.admin.detail;
@@ -971,22 +976,14 @@ function renderInquiryDetail() {
           <dd>${escapeHtml(inquiry.email)}</dd>
         </div>
         <div>
-          <dt>생성 시각</dt>
+          <dt>생성일시</dt>
           <dd>${escapeHtml(formatDate(inquiry.created_at))}</dd>
-        </div>
-        <div>
-          <dt>수정 시각</dt>
-          <dd>${escapeHtml(formatDate(inquiry.updated_at))}</dd>
-        </div>
-        <div>
-          <dt>Notion 페이지 ID</dt>
-          <dd>${escapeHtml(inquiry.id)}</dd>
         </div>
       </dl>
 
       <div class="detail-card">
         <dt>문의 제목</dt>
-        <dd>${escapeHtml(inquiry.title)}</dd>
+        <dd style="font-size: 1.15rem; font-weight: 700; color: var(--text);">${escapeHtml(inquiry.title)}</dd>
       </div>
 
       <div class="detail-card">
@@ -997,9 +994,9 @@ function renderInquiryDetail() {
       ${
         inquiry.resolution
           ? `
-            <div class="detail-card">
-              <dt>처리 결과</dt>
-              <dd class="detail-body">${escapeHtml(inquiry.resolution)}</dd>
+            <div class="detail-card" style="background: var(--ok-bg); border-color: rgba(43, 138, 62, 0.2);">
+              <dt style="color: var(--ok-text);">처리 결과</dt>
+              <dd class="detail-body" style="color: var(--ok-text);">${escapeHtml(inquiry.resolution)}</dd>
             </div>
           `
           : ""
@@ -1007,10 +1004,8 @@ function renderInquiryDetail() {
 
       <div class="detail-card">
         <div class="panel-header">
-          <div>
-            <p class="eyebrow">Update</p>
-            <h3>상태 변경</h3>
-          </div>
+          <p class="eyebrow">Action</p>
+          <h3>상태 변경</h3>
         </div>
         ${renderNotice(state.admin.updateMessage)}
         <form class="stack" data-form="admin-update">
@@ -1021,18 +1016,18 @@ function renderInquiryDetail() {
             </select>
           </div>
           <div class="field">
-            <label for="resolution">처리 결과 ${needsResolution ? "(필수)" : "(완료됨일 때만 사용)"}</label>
+            <label for="resolution">처리 결과 ${needsResolution ? "(필수)" : ""}</label>
             <textarea
               id="resolution"
               name="resolution"
-              placeholder="완료 처리 내용을 입력하세요."
+              placeholder="${needsResolution ? "완료 처리 내용을 반드시 입력해야 합니다." : "처리 내용(비고)을 입력하세요."}"
               ${needsResolution ? "required" : ""}
             >${escapeHtml(state.admin.updateResolution)}</textarea>
           </div>
-          <div class="split-actions">
-            <p class="muted">"완료됨"으로 바꾸면 백엔드가 n8n 완료 워크플로우를 호출합니다.</p>
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
+             ${state.admin.updateStatus === "완료됨" ? '<span class="muted" style="font-size: 0.8rem;">"완료" 시 자동 알림이 발송됩니다.</span>' : ""}
             <button class="primary-button" type="submit" ${state.admin.updateSubmitting ? "disabled" : ""}>
-              ${state.admin.updateSubmitting ? "저장 중..." : "상태 저장"}
+              ${state.admin.updateSubmitting ? "저장 중..." : "변경사항 저장"}
             </button>
           </div>
         </form>
