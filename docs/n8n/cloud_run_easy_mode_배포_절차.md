@@ -141,10 +141,12 @@ just n8n-bootstrap action=verify
 공통 원칙:
 - 입력 payload에는 `request_id`를 포함한다.
 - 문의 등록에는 `dedup_key`를 포함한다.
+- 문의 완료에는 메일 템플릿용 `name`, `title`을 포함한다.
 - Notion 페이지에는 `dedup_key`를 저장한다.
 - 워크플로우는 성공/실패 결과를 백엔드가 해석 가능한 구조로 반환한다.
 - 등록 workflow는 payload의 `notion_database_id`를 사용해 대상 DB를 결정한다.
 - 메일 발송은 SMTP credential을 사용한다.
+- 메일은 한국어 `HTML + plain text` 템플릿으로 발송한다.
 
 ### 7.1 Notion 속성 매핑
 
@@ -173,7 +175,38 @@ just n8n-bootstrap action=verify
 - `request_id`는 백엔드와 n8n 사이의 내부 추적용 payload 값으로만 유지한다.
 - `CreatedAt`, `UpdatedAt`은 Notion 자동 속성이므로 workflow에서 직접 쓰지 않는다.
 
-### 7.2 응답 규약
+### 7.2 webhook 입력 규약
+
+등록 workflow의 필수 입력 필드는 아래와 같다.
+
+| 필드 | 설명 |
+| --- | --- |
+| `request_id` | 내부 추적용 요청 ID |
+| `dedup_key` | 문의 중복 판별 키 |
+| `name` | 문의자 이름 |
+| `email` | 문의자 이메일 |
+| `phone` | 문의자 연락처 |
+| `title` | 문의 제목 |
+| `body` | 문의 본문 |
+| `admin_email` | 관리자 수신 주소 |
+| `notion_database_id` | 대상 Notion DB ID |
+
+완료 workflow의 필수 입력 필드는 아래와 같다.
+
+| 필드 | 설명 |
+| --- | --- |
+| `request_id` | 내부 추적용 요청 ID |
+| `notion_page_id` | 갱신 대상 Notion 페이지 ID |
+| `name` | 문의자 이름 |
+| `title` | 문의 제목 |
+| `resolution` | 문의 답변/처리 결과 |
+| `requester_email` | 문의자 수신 주소 |
+| `admin_email` | 관리자 수신 주소 |
+
+규칙:
+- 완료 workflow의 `name`, `title`은 메일 템플릿 렌더링용으로만 사용하고, 추가 Notion 속성으로 저장하지 않는다.
+
+### 7.3 응답 규약
 
 등록 workflow의 성공 응답은 아래 필드를 반환한다.
 

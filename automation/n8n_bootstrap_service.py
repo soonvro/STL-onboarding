@@ -400,6 +400,15 @@ class N8nBootstrapService:
             from_email = parameters.get("fromEmail")
             if not isinstance(from_email, str) or "change-me" in from_email:
                 raise N8nBootstrapError(f"Workflow {workflow.name} still has a placeholder fromEmail in {node_name}")
+            email_format = parameters.get("emailFormat")
+            if email_format != "both":
+                raise N8nBootstrapError(f"Workflow {workflow.name} must use emailFormat=both in {node_name}")
+            for field_name in ("subject", "text", "html"):
+                value = parameters.get(field_name)
+                if not isinstance(value, str) or not value.strip():
+                    raise N8nBootstrapError(
+                        f"Workflow {workflow.name} is missing {field_name} template content in {node_name}"
+                    )
             credentials = node.get("credentials")
             if not isinstance(credentials, dict) or "smtp" not in credentials:
                 raise N8nBootstrapError(f"Workflow {workflow.name} is missing SMTP credentials on {node_name}")

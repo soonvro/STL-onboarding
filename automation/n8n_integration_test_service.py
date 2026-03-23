@@ -44,6 +44,7 @@ class N8nIntegrationTestService:
         suffix = uuid.uuid4().hex[:10]
         register_request_id = f"it-register-{suffix}"
         complete_request_id = f"it-complete-{suffix}"
+        requester_name = "Integration Test"
         title = f"Integration Test Inquiry {suffix}"
         body = f"Integration test body {suffix}"
         resolution = f"Integration test resolution {suffix}"
@@ -56,7 +57,7 @@ class N8nIntegrationTestService:
                 payload={
                     "request_id": register_request_id,
                     "dedup_key": dedup_key,
-                    "name": "Integration Test",
+                    "name": requester_name,
                     "email": self.config.requester_email,
                     "phone": "010-0000-0000",
                     "title": title,
@@ -85,6 +86,8 @@ class N8nIntegrationTestService:
                 payload={
                     "request_id": complete_request_id,
                     "notion_page_id": notion_page_id,
+                    "name": requester_name,
+                    "title": title,
                     "resolution": resolution,
                     "requester_email": self.config.requester_email,
                     "admin_email": self.config.admin_email,

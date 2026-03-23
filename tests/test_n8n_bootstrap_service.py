@@ -12,6 +12,17 @@ from automation.n8n_bootstrap_service import (
 )
 
 
+def make_email_parameters(from_email: str, subject: str) -> dict[str, object]:
+    return {
+        "fromEmail": from_email,
+        "subject": subject,
+        "emailFormat": "both",
+        "text": "=테스트 텍스트 메일 본문",
+        "html": "=<div>테스트 HTML 메일 본문</div>",
+        "options": {"appendAttribution": False},
+    }
+
+
 def make_workflow_payload(name: str, *, active: bool, webhook_path: str, from_email: str) -> dict[str, object]:
     if name == REGISTER_WORKFLOW_NAME:
         return {
@@ -21,7 +32,14 @@ def make_workflow_payload(name: str, *, active: bool, webhook_path: str, from_em
             "nodes": [
                 {"name": "Webhook", "parameters": {"path": webhook_path}},
                 {"name": "Create Notion Page", "credentials": {"notionApi": {"id": "cred-notion", "name": "QnA Notion"}}},
-                {"name": "Send Admin Email", "parameters": {"fromEmail": from_email}, "credentials": {"smtp": {"id": "cred-smtp", "name": "QnA SMTP"}}},
+                {
+                    "name": "Send Admin Email",
+                    "parameters": make_email_parameters(
+                        from_email,
+                        "={{ '[Smart Timelabs Onboarding] 신규 문의 접수: ' + $('Validate Shared Secret and Input').item.json.title }}",
+                    ),
+                    "credentials": {"smtp": {"id": "cred-smtp", "name": "QnA SMTP"}},
+                },
             ],
         }
     return {
@@ -31,8 +49,22 @@ def make_workflow_payload(name: str, *, active: bool, webhook_path: str, from_em
         "nodes": [
             {"name": "Webhook", "parameters": {"path": webhook_path}},
             {"name": "Update Notion Page", "credentials": {"notionApi": {"id": "cred-notion", "name": "QnA Notion"}}},
-            {"name": "Send Requester Result Email", "parameters": {"fromEmail": from_email}, "credentials": {"smtp": {"id": "cred-smtp", "name": "QnA SMTP"}}},
-            {"name": "Send Admin Completion Email", "parameters": {"fromEmail": from_email}, "credentials": {"smtp": {"id": "cred-smtp", "name": "QnA SMTP"}}},
+            {
+                "name": "Send Requester Result Email",
+                "parameters": make_email_parameters(
+                    from_email,
+                    "[Smart Timelabs Onboarding] 문의 답변이 준비되었습니다",
+                ),
+                "credentials": {"smtp": {"id": "cred-smtp", "name": "QnA SMTP"}},
+            },
+            {
+                "name": "Send Admin Completion Email",
+                "parameters": make_email_parameters(
+                    from_email,
+                    "={{ '[Smart Timelabs Onboarding] 문의 처리 완료: ' + $('Validate Shared Secret and Input').item.json.title }}",
+                ),
+                "credentials": {"smtp": {"id": "cred-smtp", "name": "QnA SMTP"}},
+            },
         ],
     }
 
@@ -127,6 +159,10 @@ class N8nBootstrapServiceTest(unittest.TestCase):
         register_nodes = {node["name"]: node for node in register_payload["nodes"]}
         self.assertEqual(register_nodes["Webhook"]["parameters"]["path"], "qna-register-prod")
         self.assertEqual(register_nodes["Send Admin Email"]["parameters"]["fromEmail"], "Q&A Bot <bot@example.com>")
+        self.assertEqual(register_nodes["Send Admin Email"]["parameters"]["emailFormat"], "both")
+        self.assertIn("Smart Timelabs Onboarding", register_nodes["Send Admin Email"]["parameters"]["subject"])
+        self.assertIn("html", register_nodes["Send Admin Email"]["parameters"])
+        self.assertIn("text", register_nodes["Send Admin Email"]["parameters"])
         self.assertEqual(register_nodes["Create Notion Page"]["credentials"]["notionApi"]["id"], "cred-notion")
         self.assertEqual(register_nodes["Send Admin Email"]["credentials"]["smtp"]["id"], "cred-smtp")
         self.assertIn("shared-secret", register_nodes["Validate Shared Secret and Input"]["parameters"]["jsCode"])
@@ -134,6 +170,16 @@ class N8nBootstrapServiceTest(unittest.TestCase):
             "__N8N_SHARED_SECRET__",
             register_nodes["Validate Shared Secret and Input"]["parameters"]["jsCode"],
         )
+
+        complete_payload = client.created_workflow_payloads[1]
+        complete_nodes = {node["name"]: node for node in complete_payload["nodes"]}
+        self.assertEqual(complete_nodes["Send Requester Result Email"]["parameters"]["emailFormat"], "both")
+        self.assertIn(
+            "문의 답변이 준비되었습니다",
+            complete_nodes["Send Requester Result Email"]["parameters"]["subject"],
+        )
+        self.assertIn("html", complete_nodes["Send Admin Completion Email"]["parameters"])
+        self.assertIn("Smart Timelabs Onboarding", complete_nodes["Send Admin Completion Email"]["parameters"]["subject"])
 
     def test_verify_requires_active_workflows_with_patched_runtime_values(self) -> None:
         client = FakeN8nApiClient()
@@ -186,6 +232,36 @@ class N8nBootstrapServiceTest(unittest.TestCase):
             N8nBootstrapService(self.make_config(), client).verify()
 
         self.assertIn("placeholder", str(context.exception))
+
+    def test_verify_fails_when_email_template_is_incomplete(self) -> None:
+        client = FakeN8nApiClient()
+        client.credentials = {
+            "cred-notion": {"id": "cred-notion", "name": "QnA Notion", "type": "notionApi"},
+            "cred-smtp": {"id": "cred-smtp", "name": "QnA SMTP", "type": "smtp"},
+        }
+        complete_workflow = make_workflow_payload(
+            COMPLETE_WORKFLOW_NAME,
+            active=True,
+            webhook_path="qna-complete-prod",
+            from_email="Q&A Bot <bot@example.com>",
+        )
+        complete_workflow["nodes"][2]["parameters"].pop("html")
+        complete_workflow["nodes"][2]["parameters"]["emailFormat"] = "text"
+
+        client.workflows = {
+            "wf-register": make_workflow_payload(
+                REGISTER_WORKFLOW_NAME,
+                active=True,
+                webhook_path="qna-register-prod",
+                from_email="Q&A Bot <bot@example.com>",
+            ),
+            "wf-complete": complete_workflow,
+        }
+
+        with self.assertRaises(N8nBootstrapError) as context:
+            N8nBootstrapService(self.make_config(), client).verify()
+
+        self.assertIn("emailFormat=both", str(context.exception))
 
 
 if __name__ == "__main__":

@@ -143,6 +143,8 @@ class InquiryService:
                     workflow_result = self.n8n_gateway.complete_inquiry(
                         self._build_complete_payload(
                             notion_page_id=notion_page_id,
+                            name=inquiry.name,
+                            title=inquiry.title,
                             requester_email=inquiry.email,
                             resolution=request.resolution or "",
                         )
@@ -180,12 +182,16 @@ class InquiryService:
         self,
         *,
         notion_page_id: str,
+        name: str,
+        title: str,
         requester_email: str,
         resolution: str,
     ) -> CompleteInquiryPayload:
         return CompleteInquiryPayload(
             request_id=f"req-{uuid.uuid4().hex}",
             notion_page_id=notion_page_id,
+            name=name,
+            title=title,
             resolution=resolution,
             requester_email=requester_email,
             admin_email=self.admin_notification_email,

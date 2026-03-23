@@ -285,6 +285,35 @@ class BackendServiceTest(unittest.TestCase):
         self.assertEqual(notion.updated, [(InquiryStatus.IN_PROGRESS, None)])
         self.assertEqual(n8n_gateway.complete_payloads, [])
 
+    def test_update_inquiry_passes_name_and_title_to_complete_workflow(self) -> None:
+        notion = FakeNotionGateway(
+            inquiry_sequence=[
+                make_inquiry(status=InquiryStatus.IN_PROGRESS),
+                make_inquiry(status=InquiryStatus.COMPLETED, resolution="답변 완료"),
+            ]
+        )
+        n8n_gateway = FakeN8nGateway()
+        service = InquiryService(
+            redis_store=FakeRedisStore(),
+            notion_gateway=notion,
+            n8n_gateway=n8n_gateway,
+            notion_database_id="database-id",
+            admin_notification_email="admin@example.com",
+        )
+
+        result = service.update_inquiry(
+            "page-1",
+            InquiryUpdateRequest(status=InquiryStatus.COMPLETED, resolution="답변 완료"),
+        )
+
+        self.assertEqual(result.inquiry.status, InquiryStatus.COMPLETED)
+        self.assertEqual(len(n8n_gateway.complete_payloads), 1)
+        payload = n8n_gateway.complete_payloads[0]
+        self.assertEqual(payload.name, "홍길동")
+        self.assertEqual(payload.title, "문의 제목")
+        self.assertEqual(payload.requester_email, "user@example.com")
+        self.assertEqual(payload.resolution, "답변 완료")
+
     def test_update_inquiry_wraps_complete_workflow_failures(self) -> None:
         notion = FakeNotionGateway(
             inquiry_sequence=[

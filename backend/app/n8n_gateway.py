@@ -39,6 +39,8 @@ class CompleteWorkflowResult:
 class CompleteInquiryPayload:
     request_id: str
     notion_page_id: str
+    name: str
+    title: str
     resolution: str
     requester_email: str
     admin_email: str
