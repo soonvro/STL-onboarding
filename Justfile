@@ -22,6 +22,18 @@ n8n-integration-test:
 backend-dev:
     uv run uvicorn backend.app.asgi:app --host 0.0.0.0 --port 8000 --reload
 
+frontend-dev port="3000":
+    uv run python -m scripts.frontend_dev_server --port "$(printf '%s' '{{port}}' | sed 's/^port=//')"
+
+frontend-vercel-link:
+    npx vercel link --cwd frontend
+
+frontend-vercel-deploy:
+    npx vercel --cwd frontend --yes
+
+frontend-vercel-deploy-prod:
+    npx vercel --cwd frontend --prod --yes
+
 backend-test:
     uv run python -m unittest discover -s tests -p 'test_backend*.py' -v
 
