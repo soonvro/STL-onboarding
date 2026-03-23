@@ -109,6 +109,26 @@ gcloud run services update n8n-demo \
 5. SMTP credential 생성
 6. workflow import 후 각 메일 노드의 `fromEmail` 값을 실제 발신 주소로 교체
 
+### 6.4 저장소 자동화 경로
+
+저장소에는 Cloud Run 배포와 n8n bootstrap을 위한 자동화 진입점이 있다.
+
+```bash
+just n8n-cloud-run action=deploy
+just n8n-bootstrap action=sync
+just n8n-bootstrap action=verify
+```
+
+권장 순서:
+
+1. `.env`에 GCP와 SMTP/Notion 값을 채운다.
+2. `just n8n-cloud-run action=deploy`를 실행한다.
+3. 출력된 `N8N_BASE_URL`을 `.env`에 반영한다.
+4. n8n UI에서 owner 계정을 생성하고 API key를 발급한다.
+5. `N8N_API_KEY`를 `.env`에 반영한다.
+6. `just n8n-bootstrap action=sync`로 credential/workflow를 연결한다.
+7. `just n8n-bootstrap action=verify`로 실환경 연결 상태를 점검한다.
+
 ## 7. 워크플로우 구성 원칙
 
 이번 과제에서 n8n은 아래 두 워크플로우만 가진다.

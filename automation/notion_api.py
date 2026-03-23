@@ -86,6 +86,12 @@ class NotionClient:
     def retrieve_data_source(self, data_source_id: str) -> dict[str, object]:
         return self._request("GET", f"/data_sources/{data_source_id}")
 
+    def retrieve_page(self, page_id: str) -> dict[str, object]:
+        return self._request("GET", f"/pages/{page_id}")
+
+    def archive_page(self, page_id: str) -> dict[str, object]:
+        return self._request("PATCH", f"/pages/{page_id}", json={"archived": True})
+
     def search_data_sources_by_title(self, database_title: str) -> list[dict[str, object]]:
         results: list[dict[str, object]] = []
         start_cursor: str | None = None
