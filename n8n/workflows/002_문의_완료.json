@@ -32,42 +32,83 @@
       "name": "Validate Shared Secret and Input"
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.notion_page_id }}",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Status|status",
+              "statusValue": "Completed"
+            },
+            {
+              "key": "Resolution|rich_text",
+              "textContent": "={{ $json.resolution }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
       "position": [
         -420,
         -180
       ],
       "id": "e83a345d-6d0a-4e4e-9545-fa2e7a1916da",
-      "name": "TODO Replace with Notion Update"
+      "name": "Update Notion Page"
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "fromEmail": "Q&A Bot <change-me@example.com>",
+        "toEmail": "={{ $('Validate Shared Secret and Input').item.json.requester_email }}",
+        "subject": "=[Q&A] Your inquiry has been completed",
+        "emailFormat": "text",
+        "text": "=Your inquiry has been completed.\n\nResolution:\n{{ $('Validate Shared Secret and Input').item.json.resolution }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         -160,
         -180
       ],
       "id": "0bdd9baa-1ef6-434a-bc76-f68ff49daa31",
-      "name": "TODO Replace with Send Result Email"
+      "name": "Send Requester Result Email",
+      "onError": "continueRegularOutput"
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
+      "parameters": {
+        "fromEmail": "Q&A Bot <change-me@example.com>",
+        "toEmail": "={{ $('Validate Shared Secret and Input').item.json.admin_email }}",
+        "subject": "=[Q&A] Inquiry completed",
+        "emailFormat": "text",
+        "text": "=Inquiry completion notice.\n\nNotion page: {{ $('Validate Shared Secret and Input').item.json.notion_page_id }}\nResolution:\n{{ $('Validate Shared Secret and Input').item.json.resolution }}\nNotion URL: {{ $('Update Notion Page').item.json.url }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
       "position": [
         100,
         -180
       ],
       "id": "7db88096-a71b-4e3b-bf3c-b9eb742cf8b1",
-      "name": "TODO Replace with Send Admin Completion Email"
+      "name": "Send Admin Completion Email",
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"status\": \"ok\",\n  \"workflow\": \"inquiry_complete\",\n  \"request_id\": \"{{ $json.request_id }}\",\n  \"notion_page_id\": \"{{ $json.notion_page_id }}\",\n  \"message\": \"문의 완료 워크플로우 초안이 실행되었습니다. TODO 노드를 실제 Notion/메일 노드로 교체하세요.\"\n}",
+        "jsonOutput": "={\n  \"status\": \"ok\",\n  \"workflow\": \"inquiry_complete\",\n  \"result\": \"completed\",\n  \"request_id\": \"{{ $('Validate Shared Secret and Input').item.json.request_id }}\",\n  \"notion_page_id\": \"{{ $('Update Notion Page').item.json.id || $('Validate Shared Secret and Input').item.json.notion_page_id }}\",\n  \"requester_email_status\": \"{{ $('Send Requester Result Email').item.json.error ? 'failed' : 'sent' }}\",\n  \"admin_email_status\": \"{{ $json.error ? 'failed' : 'sent' }}\"\n}",
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -113,36 +154,36 @@
       "main": [
         [
           {
-            "node": "TODO Replace with Notion Update",
+            "node": "Update Notion Page",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "TODO Replace with Notion Update": {
+    "Update Notion Page": {
       "main": [
         [
           {
-            "node": "TODO Replace with Send Result Email",
+            "node": "Send Requester Result Email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "TODO Replace with Send Result Email": {
+    "Send Requester Result Email": {
       "main": [
         [
           {
-            "node": "TODO Replace with Send Admin Completion Email",
+            "node": "Send Admin Completion Email",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "TODO Replace with Send Admin Completion Email": {
+    "Send Admin Completion Email": {
       "main": [
         [
           {
@@ -176,7 +217,7 @@
         "body": {
           "request_id": "demo-request-002",
           "notion_page_id": "demo-notion-page-id",
-          "resolution": "처리 결과 예시",
+          "resolution": "Resolution example",
           "requester_email": "user@example.com",
           "admin_email": "admin@example.com"
         },

@@ -106,7 +106,8 @@ gcloud run services update n8n-demo \
 2. owner 계정 생성
 3. 워크플로우 생성 전 기본 동작 확인
 4. Notion credential 생성
-5. 메일 credential 생성
+5. SMTP credential 생성
+6. workflow import 후 각 메일 노드의 `fromEmail` 값을 실제 발신 주소로 교체
 
 ## 7. 워크플로우 구성 원칙
 
@@ -122,6 +123,66 @@ gcloud run services update n8n-demo \
 - 문의 등록에는 `dedup_key`를 포함한다.
 - Notion 페이지에는 `dedup_key`를 저장한다.
 - 워크플로우는 성공/실패 결과를 백엔드가 해석 가능한 구조로 반환한다.
+- 등록 workflow는 payload의 `notion_database_id`를 사용해 대상 DB를 결정한다.
+- 메일 발송은 SMTP credential을 사용한다.
+
+### 7.1 Notion 속성 매핑
+
+등록 워크플로우의 Notion 생성은 아래 속성만 사용한다.
+
+| Notion 속성 | 입력값 |
+| --- | --- |
+| `Title` | `title` |
+| `Name` | `name` |
+| `Email` | `email` |
+| `Phone` | `phone` |
+| `Body` | `inquiry_body` |
+| `DedupKey` | `dedup_key` |
+| `Status` | `Registered` |
+| `Resolution` | 빈 값 또는 미설정 |
+
+완료 워크플로우의 Notion 업데이트는 아래 속성만 사용한다.
+
+| Notion 속성 | 입력값 |
+| --- | --- |
+| `Status` | `Completed` |
+| `Resolution` | `resolution` |
+
+규칙:
+- `RequestId`는 Notion 속성으로 만들지 않고, 쓰지도 않는다.
+- `request_id`는 백엔드와 n8n 사이의 내부 추적용 payload 값으로만 유지한다.
+- `CreatedAt`, `UpdatedAt`은 Notion 자동 속성이므로 workflow에서 직접 쓰지 않는다.
+
+### 7.2 응답 규약
+
+등록 workflow의 성공 응답은 아래 필드를 반환한다.
+
+| 필드 | 설명 |
+| --- | --- |
+| `status` | `ok` |
+| `workflow` | `inquiry_register` |
+| `result` | `created` |
+| `request_id` | 내부 추적용 요청 ID |
+| `dedup_key` | 문의 중복 판별 키 |
+| `notion_page_id` | 생성된 Notion 페이지 ID |
+| `admin_email_status` | `sent` 또는 `failed` |
+
+완료 workflow의 성공 응답은 아래 필드를 반환한다.
+
+| 필드 | 설명 |
+| --- | --- |
+| `status` | `ok` |
+| `workflow` | `inquiry_complete` |
+| `result` | `completed` |
+| `request_id` | 내부 추적용 요청 ID |
+| `notion_page_id` | 갱신된 Notion 페이지 ID |
+| `requester_email_status` | `sent` 또는 `failed` |
+| `admin_email_status` | `sent` 또는 `failed` |
+
+정책:
+- Notion 작업이 성공하고 메일만 실패하면 HTTP 200을 유지한다.
+- 이 경우 응답 본문의 메일 상태 필드만 `failed`로 내려간다.
+- Notion 작업 자체가 실패하면 workflow는 성공 응답 노드에 도달하지 않고 n8n 기본 오류 응답을 반환한다.
 
 ## 8. 백엔드 연동 원칙
 
@@ -164,4 +225,3 @@ X-N8N-Shared-Secret: <shared-secret>
 - [ADR 002](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/adr/002_Notion_및_메일_오케스트레이션_책임으로_n8n_워크플로우_채택.md)
 - [ADR 006](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/adr/006_n8n_배포_전략으로_Cloud_Run_easy_mode_채택.md)
 - [Redis 기반 문의 중복 방지 플로우](/home/soonvro/Projects/01_Active/smart_timelabs_onboarding/docs/design/redis_중복_방지_플로우.md)
-
