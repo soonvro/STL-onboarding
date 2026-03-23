@@ -23,6 +23,25 @@
 
 ## 3. 핵심 식별자
 
+### 3.0 Notion 구현 매핑
+
+Notion 구현에서는 속성명과 상태 옵션을 영어로 고정한다.
+
+| 한국어 개념 | Notion 속성/값 |
+| --- | --- |
+| 제목 | `Title` |
+| 이름 | `Name` |
+| 이메일 | `Email` |
+| 전화번호 | `Phone` |
+| 본문 | `Body` |
+| 중복판별키 | `DedupKey` |
+| 처리결과 | `Resolution` |
+| 등록시각 | `CreatedAt` |
+| 수정시각 | `UpdatedAt` |
+| 등록됨 | `Registered` |
+| 처리중 | `In Progress` |
+| 완료됨 | `Completed` |
+
 ### 3.1 중복 판별 키
 
 중복 문의 판별 기준은 `이름 + 제목`이다.
@@ -36,6 +55,7 @@ dedup_key = sha256(normalize(name) + ":" + normalize(title))
 
 - 각 등록 요청에는 `request_id`를 부여한다.
 - Redis 상태 키와 n8n 호출 payload에 `request_id`를 함께 넣어 추적한다.
+- `request_id`는 내부 추적용 값이며 Notion DB 속성으로 저장하지 않는다.
 
 ## 4. Redis 키 설계
 
