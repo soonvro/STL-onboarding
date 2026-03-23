@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 import httpx
 
@@ -16,10 +16,32 @@ class RegisterWorkflowResult:
 
 
 @dataclass(slots=True)
+class RegisterInquiryPayload:
+    request_id: str
+    dedup_key: str
+    name: str
+    email: str
+    phone: str
+    title: str
+    body: str
+    admin_email: str
+    notion_database_id: str
+
+
+@dataclass(slots=True)
 class CompleteWorkflowResult:
     notion_page_id: str
     requester_email_status: str
     admin_email_status: str
+
+
+@dataclass(slots=True)
+class CompleteInquiryPayload:
+    request_id: str
+    notion_page_id: str
+    resolution: str
+    requester_email: str
+    admin_email: str
 
 
 @dataclass(slots=True)
@@ -37,8 +59,8 @@ class N8nWorkflowGateway:
     def close(self) -> None:
         self._client.close()
 
-    def register_inquiry(self, payload: dict[str, object]) -> RegisterWorkflowResult:
-        data = self._call(self.register_path, payload)
+    def register_inquiry(self, payload: RegisterInquiryPayload) -> RegisterWorkflowResult:
+        data = self._call(self.register_path, asdict(payload))
         notion_page_id = data.get("notion_page_id")
         admin_email_status = data.get("admin_email_status")
         if not isinstance(notion_page_id, str) or not notion_page_id:
@@ -47,8 +69,8 @@ class N8nWorkflowGateway:
             raise N8nWorkflowError("register workflow did not return admin_email_status")
         return RegisterWorkflowResult(notion_page_id=notion_page_id, admin_email_status=admin_email_status)
 
-    def complete_inquiry(self, payload: dict[str, object]) -> CompleteWorkflowResult:
-        data = self._call(self.complete_path, payload)
+    def complete_inquiry(self, payload: CompleteInquiryPayload) -> CompleteWorkflowResult:
+        data = self._call(self.complete_path, asdict(payload))
         notion_page_id = data.get("notion_page_id")
         requester_email_status = data.get("requester_email_status")
         admin_email_status = data.get("admin_email_status")

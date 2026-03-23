@@ -3,28 +3,38 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+TITLE_PROPERTY_NAME = "Title"
+NAME_PROPERTY_NAME = "Name"
+EMAIL_PROPERTY_NAME = "Email"
+PHONE_PROPERTY_NAME = "Phone"
+BODY_PROPERTY_NAME = "Body"
+DEDUP_KEY_PROPERTY_NAME = "DedupKey"
+RESOLUTION_PROPERTY_NAME = "Resolution"
+CREATED_AT_PROPERTY_NAME = "CreatedAt"
+UPDATED_AT_PROPERTY_NAME = "UpdatedAt"
+
 DATABASE_PROPERTY_SPECS: dict[str, str] = {
-    "Title": "title",
-    "Name": "rich_text",
-    "Email": "email",
-    "Phone": "phone_number",
-    "Body": "rich_text",
-    "DedupKey": "rich_text",
-    "Resolution": "rich_text",
-    "CreatedAt": "created_time",
-    "UpdatedAt": "last_edited_time",
+    TITLE_PROPERTY_NAME: "title",
+    NAME_PROPERTY_NAME: "rich_text",
+    EMAIL_PROPERTY_NAME: "email",
+    PHONE_PROPERTY_NAME: "phone_number",
+    BODY_PROPERTY_NAME: "rich_text",
+    DEDUP_KEY_PROPERTY_NAME: "rich_text",
+    RESOLUTION_PROPERTY_NAME: "rich_text",
+    CREATED_AT_PROPERTY_NAME: "created_time",
+    UPDATED_AT_PROPERTY_NAME: "last_edited_time",
 }
 
 CREATABLE_DATABASE_PROPERTIES: dict[str, dict[str, object]] = {
-    "Title": {"title": {}},
-    "Name": {"rich_text": {}},
-    "Email": {"email": {}},
-    "Phone": {"phone_number": {}},
-    "Body": {"rich_text": {}},
-    "DedupKey": {"rich_text": {}},
-    "Resolution": {"rich_text": {}},
-    "CreatedAt": {"created_time": {}},
-    "UpdatedAt": {"last_edited_time": {}},
+    TITLE_PROPERTY_NAME: {"title": {}},
+    NAME_PROPERTY_NAME: {"rich_text": {}},
+    EMAIL_PROPERTY_NAME: {"email": {}},
+    PHONE_PROPERTY_NAME: {"phone_number": {}},
+    BODY_PROPERTY_NAME: {"rich_text": {}},
+    DEDUP_KEY_PROPERTY_NAME: {"rich_text": {}},
+    RESOLUTION_PROPERTY_NAME: {"rich_text": {}},
+    CREATED_AT_PROPERTY_NAME: {"created_time": {}},
+    UPDATED_AT_PROPERTY_NAME: {"last_edited_time": {}},
 }
 
 STATUS_PROPERTY_NAME = "Status"

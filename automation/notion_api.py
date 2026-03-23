@@ -11,6 +11,10 @@ from automation.notion_schema import CREATABLE_DATABASE_PROPERTIES
 class NotionApiError(RuntimeError):
     """Raised when the Notion API returns an error response."""
 
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 @dataclass(slots=True)
 class NotionClient:
@@ -59,7 +63,7 @@ class NotionClient:
             elif isinstance(api_message, str):
                 message = f"{message}: {api_message}"
 
-        raise NotionApiError(message)
+        raise NotionApiError(message, status_code=response.status_code)
 
     def create_database(self, parent_page_id: str, database_title: str) -> dict[str, object]:
         payload = {

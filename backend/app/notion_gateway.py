@@ -3,7 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from automation.notion_api import NotionApiError, NotionClient, rich_text_to_plain_text
-from automation.notion_schema import STATUS_NAME_MAPPING
+from automation.notion_schema import (
+    BODY_PROPERTY_NAME,
+    CREATED_AT_PROPERTY_NAME,
+    DEDUP_KEY_PROPERTY_NAME,
+    EMAIL_PROPERTY_NAME,
+    NAME_PROPERTY_NAME,
+    PHONE_PROPERTY_NAME,
+    RESOLUTION_PROPERTY_NAME,
+    STATUS_NAME_MAPPING,
+    STATUS_PROPERTY_NAME,
+    TITLE_PROPERTY_NAME,
+    UPDATED_AT_PROPERTY_NAME,
+)
 
 from backend.app.models import InquiryDetailResponse, InquiryListItem, InquiryStatus
 
@@ -39,14 +51,14 @@ class NotionInquiryGateway:
         filter_payload = None
         if status is not None:
             filter_payload = {
-                "property": "Status",
+                "property": STATUS_PROPERTY_NAME,
                 "status": {"equals": STATUS_NAME_MAPPING[status.value]},
             }
 
         payload = self.client.query_data_source(
             self.data_source_id,
             filter=filter_payload,
-            sorts=[{"property": "CreatedAt", "direction": "descending"}],
+            sorts=[{"property": CREATED_AT_PROPERTY_NAME, "direction": "descending"}],
             start_cursor=cursor,
             page_size=page_size,
         )
@@ -62,7 +74,7 @@ class NotionInquiryGateway:
         try:
             page = self.client.retrieve_page(notion_page_id)
         except NotionApiError as exc:
-            if "404" in str(exc):
+            if exc.status_code == 404:
                 raise InquiryNotFoundError("inquiry not found") from exc
             raise
         return self._to_detail(page)
@@ -71,7 +83,7 @@ class NotionInquiryGateway:
         payload = self.client.query_data_source(
             self.data_source_id,
             filter={
-                "property": "DedupKey",
+                "property": DEDUP_KEY_PROPERTY_NAME,
                 "rich_text": {"equals": dedup_key},
             },
             page_size=1,
@@ -87,10 +99,10 @@ class NotionInquiryGateway:
 
     def update_status(self, notion_page_id: str, *, status: InquiryStatus, resolution: str | None = None) -> InquiryDetailResponse:
         properties: dict[str, object] = {
-            "Status": {"status": {"name": STATUS_NAME_MAPPING[status.value]}},
+            STATUS_PROPERTY_NAME: {"status": {"name": STATUS_NAME_MAPPING[status.value]}},
         }
         if resolution is not None:
-            properties["Resolution"] = {"rich_text": _rich_text(resolution)}
+            properties[RESOLUTION_PROPERTY_NAME] = {"rich_text": _rich_text(resolution)}
         page = self.client.update_page(notion_page_id, properties)
         return self._to_detail(page)
 
@@ -98,27 +110,27 @@ class NotionInquiryGateway:
         properties = _properties(page)
         return InquiryListItem(
             id=_string(page.get("id")),
-            name=_rich_text_property(properties, "Name"),
-            email=_email_property(properties, "Email"),
-            phone=_phone_property(properties, "Phone"),
-            title=_title_property(properties, "Title"),
-            status=_status_property(properties, "Status"),
-            created_at=_created_time_property(page, properties, "CreatedAt"),
+            name=_rich_text_property(properties, NAME_PROPERTY_NAME),
+            email=_email_property(properties, EMAIL_PROPERTY_NAME),
+            phone=_phone_property(properties, PHONE_PROPERTY_NAME),
+            title=_title_property(properties, TITLE_PROPERTY_NAME),
+            status=_status_property(properties, STATUS_PROPERTY_NAME),
+            created_at=_created_time_property(page, properties, CREATED_AT_PROPERTY_NAME),
         )
 
     def _to_detail(self, page: dict[str, object]) -> InquiryDetailResponse:
         properties = _properties(page)
         return InquiryDetailResponse(
             id=_string(page.get("id")),
-            name=_rich_text_property(properties, "Name"),
-            email=_email_property(properties, "Email"),
-            phone=_phone_property(properties, "Phone"),
-            title=_title_property(properties, "Title"),
-            body=_rich_text_property(properties, "Body"),
-            status=_status_property(properties, "Status"),
-            resolution=_optional_rich_text_property(properties, "Resolution"),
-            created_at=_created_time_property(page, properties, "CreatedAt"),
-            updated_at=_updated_time_property(page, properties, "UpdatedAt"),
+            name=_rich_text_property(properties, NAME_PROPERTY_NAME),
+            email=_email_property(properties, EMAIL_PROPERTY_NAME),
+            phone=_phone_property(properties, PHONE_PROPERTY_NAME),
+            title=_title_property(properties, TITLE_PROPERTY_NAME),
+            body=_rich_text_property(properties, BODY_PROPERTY_NAME),
+            status=_status_property(properties, STATUS_PROPERTY_NAME),
+            resolution=_optional_rich_text_property(properties, RESOLUTION_PROPERTY_NAME),
+            created_at=_created_time_property(page, properties, CREATED_AT_PROPERTY_NAME),
+            updated_at=_updated_time_property(page, properties, UPDATED_AT_PROPERTY_NAME),
         )
 
 

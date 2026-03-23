@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.api_errors import to_http_exception
 from backend.app.dependencies import AppContainer, build_container, get_container, require_admin_session
 from backend.app.models import (
     AdminLoginRequest,
@@ -21,12 +22,7 @@ from backend.app.models import (
     MessageResponse,
 )
 from backend.app.notion_gateway import InquiryNotFoundError
-from backend.app.services import (
-    DuplicateInquiryError,
-    InquiryProcessingError,
-    IntegrationFailureError,
-    InvalidTransitionError,
-)
+from backend.app.services import InquiryServiceError
 from backend.app.settings import AppSettings
 
 
@@ -77,21 +73,8 @@ def create_app(settings: AppSettings | None = None, container: AppContainer | No
     ) -> InquiryCreateResponse:
         try:
             result = container.inquiry_service.create_inquiry(request)
-        except DuplicateInquiryError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "duplicate_inquiry", "message": str(exc)},
-            ) from exc
-        except InquiryProcessingError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "inquiry_processing", "message": str(exc)},
-            ) from exc
-        except IntegrationFailureError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail={"code": "integration_failure", "message": str(exc)},
-            ) from exc
+        except (InquiryServiceError, InquiryNotFoundError) as exc:
+            raise to_http_exception(exc) from exc
 
         return InquiryCreateResponse(
             request_id=result.request_id,
@@ -160,8 +143,8 @@ def create_app(settings: AppSettings | None = None, container: AppContainer | No
     ) -> InquiryDetailResponse:
         try:
             return container.inquiry_service.get_inquiry(notion_page_id)
-        except InquiryNotFoundError as exc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inquiry not found") from exc
+        except (InquiryServiceError, InquiryNotFoundError) as exc:
+            raise to_http_exception(exc) from exc
 
     @app.patch(
         "/api/v1/admin/inquiries/{notion_page_id}",
@@ -176,23 +159,8 @@ def create_app(settings: AppSettings | None = None, container: AppContainer | No
     ) -> InquiryUpdateResponse:
         try:
             result = container.inquiry_service.update_inquiry(notion_page_id, request)
-        except InquiryNotFoundError as exc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inquiry not found") from exc
-        except InquiryProcessingError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "update_processing", "message": str(exc)},
-            ) from exc
-        except InvalidTransitionError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={"code": "invalid_transition", "message": str(exc)},
-            ) from exc
-        except IntegrationFailureError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail={"code": "integration_failure", "message": str(exc)},
-            ) from exc
+        except (InquiryServiceError, InquiryNotFoundError) as exc:
+            raise to_http_exception(exc) from exc
 
         return InquiryUpdateResponse(message="문의 상태가 반영되었습니다.", inquiry=result.inquiry)
 
