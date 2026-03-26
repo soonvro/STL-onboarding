@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 DEFAULT_API_VERSION = "2026-03-11"
-DEFAULT_N8N_IMAGE = "n8nio/n8n:2.7.4"
+DEFAULT_N8N_IMAGE = "n8nio/n8n:2.13.3"
 DEFAULT_N8N_MEMORY = "2Gi"
 DEFAULT_N8N_REGION = "asia-northeast3"
 DEFAULT_N8N_SCALING = "1"

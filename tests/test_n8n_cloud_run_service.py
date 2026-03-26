@@ -23,7 +23,7 @@ class N8nCloudRunServiceTest(unittest.TestCase):
             gcp_project_id="demo-project",
             gcp_region="asia-northeast3",
             n8n_service_name="n8n-demo",
-            n8n_image="n8nio/n8n:2.7.4",
+            n8n_image="n8nio/n8n:2.13.3",
             n8n_memory="2Gi",
             n8n_scaling="1",
             n8n_timezone="Asia/Seoul",
@@ -41,7 +41,7 @@ class N8nCloudRunServiceTest(unittest.TestCase):
             runner.commands[0],
             ["gcloud", "services", "enable", "run.googleapis.com", "--project=demo-project"],
         )
-        self.assertIn("--image=n8nio/n8n:2.7.4", runner.commands[1])
+        self.assertIn("--image=n8nio/n8n:2.13.3", runner.commands[1])
         self.assertIn("--scaling=1", runner.commands[1])
         self.assertIn(
             "--set-env-vars=N8N_ENDPOINT_HEALTH=health,GENERIC_TIMEZONE=Asia/Seoul,TZ=Asia/Seoul,N8N_SHARED_SECRET=shared-secret",
